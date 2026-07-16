@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>데들리 룰렛 (Deadly Roulette) 🔫</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700&family=Noto+Sans+KR:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        /* 기본 스타일 및 테마 정의 */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+        }
+
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+            background-color: #0d0d11;
+            background-image: 
+                radial-gradient(circle at 50% 30%, #201315 0%, #0d0d11 70%);
+            color: #f5f5fa;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden;
+            position: relative;
+            transition: background 0.8s ease; /* 부드러운 배경색 전환 */
+        }
+
+        /* 사망(게임오버) 상태의 긴장감 높은 배경 연출 */
+        body.dead {
+            background-color: #2a0505;
+            background-image: 
+                radial-gradient(circle at 50% 30%, #52080f 0%, #080001 80%);
+        }
+
+        /* 전체 화면 피격/충격 효과 */
+        .flash-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(231, 76, 60, 0.9);
+            z-index: 999;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.05s ease-out;
+        }
+
+        /* 메인 컨테이너 */
+        .game-container {
+            width: 90%;
+            max-width: 460px;
+            background: rgba(20, 20, 27, 0.75);
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 24px;
+            padding: 2.5rem 2rem;
+            text-align: center;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+            transform: translateY(0);
+            z-index: 10;
+        }
+
+        /* 흔들림 효과 (피격 시) */
+        @keyframes shake {
+            0%, 100% { transform: translate(0, 0) rotate(0deg); }
+            10% { transform: translate(-10px, -5px) rotate(-3deg); }
+            20% { transform: translate(15px, 8px) rotate(4deg); }
+            30% { transform: translate(-8px, 12px) rotate(-2deg); }
+            40% { transform: translate(12px, -8px) rotate(3deg); }
+            50% { transform: translate(-15px, 5px) rotate(-4deg); }
+            60% { transform: translate(10px, -12px) rotate(2deg); }
+            70% { transform: translate(-5px, 8px) rotate(-1deg); }
+            80% { transform: translate(12px, 5px) rotate(3deg); }
+            90% { transform: translate(-10px, -8px) rotate(-2deg); }
+        }
+
+        .shake-animation {
+            animation: shake 0.5s ease-in-out;
+        }
+
+        /* 헤더 스타일 */
+        h1 {
+            font-family: 'Cinzel', serif;
+            font-size: 2.5rem;
+            letter-spacing: 2px;
+            background: linear-gradient(135deg, #e74c3c, #f1c40f);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.5rem;
+            text-shadow: 0 4px 10px rgba(231, 76, 60, 0.3);
+        }
+
+        .subtitle {
+            font-size: 0.9rem;
+            color: #8a8a9e;
+            margin-bottom: 2rem;
+            font-weight: 300;
+        }
+
+        /* 게임 상태창 */
+        .status-panel {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 12px;
+            padding: 1rem;
+            margin-bottom: 2rem;
+            border: 1px solid rgba(255, 255, 255, 0.03);
+        }
+
+        .status-text {
+            font-size: 1.25rem;
+            font-weight: bold;
+            color: #e74c3c;
+            min-height: 1.8rem;
+            transition: color 0.3s ease;
+        }
+
+        .stats {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 0.5rem;
+            font-size: 0.85rem;
+            color: #a0a0b0;
+        }
+
+        .stat-val {
+            color: #fff;
+            font-weight: bold;
+        }
+
+        /* 3D 실린더 회전 그래픽 */
+        .cylinder-outer {
+            width: 200px;
+            height: 200px;
+            margin: 0 auto 2.5rem;
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* 실린더 몸체 - JS 기반의 세밀한 렌더링을 위해 CSS transition은 제거됨 */
+        .cylinder {
+            width: 180px;
+            height: 180px;
+            background: radial-gradient(circle, #2d2d35 40%, #1a1a20 100%);
+            border-radius: 50%;
+            position: relative;
+            border: 6px solid #4a4a55;
+            box-shadow: 
+                0 0 0 2px #111,
+                0 10px 25px rgba(0, 0, 0, 0.6),
+                inset 0 4px 12px rgba(255, 255, 255, 0.1);
+            will-change: transform, filter; /* 하드웨어 가속 유도 */
+        }
+
+        /* 중앙 축 버튼/캡 */
+        .cylinder-axis {
+            width: 50px;
+            height: 50px;
+            background: radial-gradient(circle, #4a4a55 20%, #2a2a30 100%);
+            border-radius: 50%;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 5;
+            border: 3px solid #1a1a20;
+            box-shadow: inset 0 2px 5px rgba(255, 255, 255, 0.2);
+        }
+
+        /* 약실 (Chambers) */
+        .chamber {
+            width: 36px;
+            height: 36px;
+            background: #0f0f13;
+            border-radius: 50%;
+            position: absolute;
+            border: 2px solid #333;
+            box-shadow: 
+                inset 0 4px 8px rgba(0, 0, 0, 0.9),
+                0 1px 1px rgba(255, 255, 255, 0.05);
+            transition: background-color 0.3s, border-color 0.3s;
+        }
+
+        .chamber.revealed-bullet {
+            background: radial-gradient(circle, #f1c40f 40%, #d68910 80%) !important;
+            border-color: #f39c12 !important;
+            box-shadow: 
+                0 0 10px rgba(241, 196, 15, 0.6),
+                inset 0 2px 4px rgba(255, 255, 255, 0.4);
+        }
+
+        /* 발사 완료되어 안전함이 확인된 약실 */
+        .chamber.fired-safe {
+            border-color: #2ecc71;
+            background: #15251b;
+        }
+
+        /* 발사되어 터진 약실 (총알 있던 자리) */
+        .chamber.fired-death {
+            border-color: #e74c3c;
+            background: #2c1615;
+            position: relative;
+        }
+        .chamber.fired-death::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 14px;
+            height: 14px;
+            background: #e74c3c;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 0 8px #e74c3c;
+        }
+
+        /* 방아쇠가 당겨지는 조준 마커 (맨 위 약실이 항상 격발 대상) */
+        .firing-pin-marker {
+            position: absolute;
+            top: -5px;
+            width: 0;
+            height: 0;
+            border-left: 10px solid transparent;
+            border-right: 10px solid transparent;
+            border-top: 15px solid #e74c3c;
+            z-index: 6;
+            filter: drop-shadow(0 2px 4px rgba(231, 76, 60, 0.5));
+        }
+
+        /* 컨트롤 버튼 그룹 */
+        .controls {
+            display: flex;
+            flex-direction: column;
+            gap: 0.8rem;
+        }
+
+        .btn {
+            padding: 1rem;
+            font-size: 1.1rem;
+            font-weight: bold;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-family: 'Noto Sans KR', sans-serif;
+            letter-spacing: 0.5px;
+            outline: none;
+        }
+
+        /* 실린더 돌리기 */
+        .btn-spin {
+            background: linear-gradient(135deg, #34495e, #2c3e50);
+            color: #ecf0f1;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+        .btn-spin:hover:not(:disabled) {
+            background: linear-gradient(135deg, #415b75, #34495e);
+            transform: translateY(-2px);
+        }
+        .btn-spin:active:not(:disabled) {
+            transform: translateY(0);
+        }
+
+        /* 방아쇠 당기기 */
+        .btn-trigger {
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
+            color: #fff;
+            box-shadow: 0 6px 20px rgba(231, 76, 60, 0.3);
+        }
+        .btn-trigger:hover:not(:disabled) {
+            background: linear-gradient(135deg, #ff5e4e, #d63031);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(231, 76, 60, 0.4);
+        }
+        .btn-trigger:active:not(:disabled) {
+            transform: translateY(0);
+        }
+
+        /* 재시작 버튼 */
+        .btn-reset {
+            background: linear-gradient(135deg, #16a085, #1abc9c);
+            color: #fff;
+            box-shadow: 0 4px 15px rgba(26, 188, 156, 0.2);
+        }
+        .btn-reset:hover:not(:disabled) {
+            background: linear-gradient(135deg, #1abc9c, #1dd1a1);
+            transform: translateY(-2px);
+        }
+
+        /* 버튼 비활성화 상태 */
+        .btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            transform: none !important;
+            box-shadow: none !important;
+        }
+
+        /* 정보 가이드 */
+        .guide-text {
+            margin-top: 1.5rem;
+            font-size: 0.8rem;
+            color: #636e72;
+            line-height: 1.4;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 화면 깜빡임 연출 레이어 -->
+    <div class="flash-overlay" id="flashOverlay"></div>
+
+    <div class="game-container" id="gameContainer">
+        <h1>DEADLY ROULETTE</h1>
+        <div class="subtitle">격발할 준비를 하십시오. 생존은 오직 운명에 달렸습니다.</div>
+
+        <!-- 상태 판넬 -->
+        <div class="status-panel">
+            <div class="status-text" id="statusMessage">총알을 장전하고 돌려주세요.</div>
+            <div class="stats">
+                <div>생존 횟수: <span class="stat-val" id="survivalCount">0</span> 회</div>
+                <div>누적 전적: <span class="stat-val" id="recordScore">0 / 0</span> (생존/사망)</div>
+            </div>
+        </div>
+
+        <!-- 실린더 원형 그래픽 영역 -->
+        <div class="cylinder-outer">
+            <!-- 고정 조준핀 (정상 위치는 맨 위인 12시 방향) -->
+            <div class="firing-pin-marker"></div>
+            <!-- 돌아가는 실린더 몸체 -->
+            <div class="cylinder" id="cylinder">
+                <div class="cylinder-axis"></div>
+                <!-- 6개의 약실이 JS에 의해 동적으로 배치됩니다. -->
+                <div class="chamber" id="chamber-0"></div>
+                <div class="chamber" id="chamber-1"></div>
+                <div class="chamber" id="chamber-2"></div>
+                <div class="chamber" id="chamber-3"></div>
+                <div class="chamber" id="chamber-4"></div>
+                <div class="chamber" id="chamber-5"></div>
+            </div>
+        </div>
+
+        <!-- 조작 버튼 -->
+        <div class="controls">
+            <button class="btn btn-spin" id="btnSpin">실린더 회전 (Spin)</button>
+            <button class="btn btn-trigger" id="btnTrigger" disabled>방아쇠 당기기 (Fire)</button>
+            <button class="btn btn-reset" id="btnReset" style="display: none;">새 게임 (Reset)</button>
+        </div>
+
+        <!-- 하단 가이드 -->
+        <div class="guide-text">
+            * 12시 방향의 약실이 격발 대상입니다.<br>
+            * 실린더를 스핀하면 총알이 무작위 약실에 1발 숨겨지며, 시작 위치가 섞입니다.
+        </div>
+    </div>
+
+    <script>
+        // --- 사운드 제어를 위한 Web Audio API 신디사이저 클래스 ---
+        class SoundFX {
+            constructor() {
+                this.ctx = null;
+            }
+
+            init() {
+                if (!this.ctx) {
+                    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                if (this.ctx.state === 'suspended') {
+                    this.ctx.resume();
+                }
+            }
+
+            // 실린더 회전할 때 나는 도르륵- 클릭 소리
+            playTick() {
+                this.init();
+                const ctx = this.ctx;
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(140, ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(30, ctx.currentTime + 0.04);
+
+                gain.gain.setValueAtTime(0.18, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.04);
+
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+
+                osc.start();
+                osc.stop(ctx.currentTime + 0.05);
+            }
+
+            // 빈 약실 격발 시 틱- 하는 금속음
+            playEmptyClick() {
+                this.init();
+                const ctx = this.ctx;
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(800, ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(300, ctx.currentTime + 0.1);
+
+                gain.gain.setValueAtTime(0.3, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1);
+
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+
+                osc.start();
+                osc.stop(ctx.currentTime + 0.12);
+            }
+
+            // 총이 발사될 때의 강력한 폭발음
+            playExplosion() {
+                this.init();
+                const ctx = this.ctx;
+                
+                const bufferSize = ctx.sampleRate * 1.5; // 1.5초
+                const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+                const data = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) {
+                    data[i] = Math.random() * 2 - 1;
+                }
+
+                const noise = ctx.createBufferSource();
+                noise.buffer = buffer;
+
+                const filter = ctx.createBiquadFilter();
+                filter.type = 'lowpass';
+                filter.frequency.setValueAtTime(1000, ctx.currentTime);
+                filter.frequency.exponentialRampToValueAtTime(20, ctx.currentTime + 0.8);
+
+                const subOsc = ctx.createOscillator();
+                subOsc.type = 'sawtooth';
+                subOsc.frequency.setValueAtTime(180, ctx.currentTime);
+                subOsc.frequency.exponentialRampToValueAtTime(10, ctx.currentTime + 0.6);
+
+                const subGain = ctx.createGain();
+                subGain.gain.setValueAtTime(0.6, ctx.currentTime);
+                subGain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.6);
+
+                const noiseGain = ctx.createGain();
+                noiseGain.gain.setValueAtTime(0.8, ctx.currentTime);
+                noiseGain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 1.2);
+
+                noise.connect(filter);
+                filter.connect(noiseGain);
+                noiseGain.connect(ctx.destination);
+
+                subOsc.connect(subGain);
+                subGain.connect(ctx.destination);
+
+                noise.start();
+                subOsc.start();
+
+                noise.stop(ctx.currentTime + 1.5);
+                subOsc.stop(ctx.currentTime + 0.65);
+            }
+        }
+
+        const sound = new SoundFX();
+
+        // --- 게임 상태 관리 변수 ---
+        const totalChambers = 6;
+        let bulletPosition = -1;  // 총알의 실제 인덱스 (0 ~ 5)
+        let currentPosition = 0;   // 현재 12시 방향에 와 있는 인덱스 (0 ~ 5)
+        let currentRotation = 0;   // 실린더 회전 누적 각도 (도 단위)
+        let survivalStreak = 0;    // 현재 연속 생존 횟수
+        let globalSurvivals = 0;   // 통계: 총 생존 성공 수
+        let globalDeaths = 0;      // 통계: 총 사망 수
+        let isGameOver = false;
+        let isSpinning = false;
+
+        // --- DOM 엘리먼트 ---
+        const cylinder = document.getElementById('cylinder');
+        const statusMessage = document.getElementById('statusMessage');
+        const survivalCountSpan = document.getElementById('survivalCount');
+        const recordScoreSpan = document.getElementById('recordScore');
+        const btnSpin = document.getElementById('btnSpin');
+        const btnTrigger = document.getElementById('btnTrigger');
+        const btnReset = document.getElementById('btnReset');
+        const gameContainer = document.getElementById('gameContainer');
+        const flashOverlay = document.getElementById('flashOverlay');
+
+        // --- 약실 원형 배치 ---
+        function initChamberPositions() {
+            const radius = 60; // 중심으로부터의 거리 (px)
+            for (let i = 0; i < totalChambers; i++) {
+                const chamberEl = document.getElementById(`chamber-${i}`);
+                const angle = (i * 60 - 90) * (Math.PI / 180);
+                const x = 90 + radius * Math.cos(angle) - 18; // 18은 약실 크기 절반
+                const y = 90 + radius * Math.sin(angle) - 18;
+                chamberEl.style.left = `${x}px`;
+                chamberEl.style.top = `${y}px`;
+            }
+        }
+
+        // --- 정밀하고 자연스러운 JS 프레임 기반 실린더 애니메이션 함수 (Friction & Motion Blur) ---
+        function animateCylinder(targetAngle, duration, callback) {
+            const startAngle = currentRotation;
+            const angleDiff = targetAngle - startAngle;
+            const startTime = performance.now();
+            
+            // 60도 지날 때마다 딱! 딱! 물리 틱 사운드가 출력되게 함
+            let lastPassedCount = 0;
+
+            function update(now) {
+                const elapsed = now - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+
+                // 초정밀 감속(Quintic Ease Out) 곡선 적용
+                const ease = 1 - Math.pow(1 - progress, 4);
+                const currentAngle = startAngle + angleDiff * ease;
+
+                // 속도 비례 실시간 모션 블러 및 실린더 미세 떨림 필터 계산
+                const currentVel = (angleDiff * 4 * Math.pow(1 - progress, 3)) / duration;
+                const blurAmount = Math.min(5, Math.abs(currentVel) * 15);
+                
+                // 회전 중심 축 미세 진동 효과 (초고속 회전 시 몰입감 증폭)
+                const jitterX = (Math.random() - 0.5) * Math.min(1.5, Math.abs(currentVel) * 3);
+                const jitterY = (Math.random() - 0.5) * Math.min(1.5, Math.abs(currentVel) * 3);
+
+                cylinder.style.filter = `blur(${blurAmount}px)`;
+                cylinder.style.transform = `translate(${jitterX}px, ${jitterY}px) rotate(${currentAngle}deg)`;
+
+                // 60도 회전 경계를 지날 때마다 사운드 트리거 작동
+                const rotatedAmount = Math.abs(currentAngle - startAngle);
+                const passedCount = Math.floor(rotatedAmount / 60);
+                if (passedCount > lastPassedCount) {
+                    sound.playTick();
+                    lastPassedCount = passedCount;
+                }
+
+                if (progress < 1) {
+                    requestAnimationFrame(update);
+                } else {
+                    currentRotation = targetAngle;
+                    // 위치와 각도 리셋 및 완벽하게 고정
+                    cylinder.style.transform = `translate(0px, 0px) rotate(${currentRotation % 360}deg)`;
+                    cylinder.style.filter = 'none';
+                    if (callback) callback();
+                }
+            }
+            requestAnimationFrame(update);
+        }
+
+        // --- 게임 리셋 / 시작 상태 세팅 ---
+        function resetGame() {
+            isGameOver = false;
+            bulletPosition = -1;
+            
+            // 사망 시 적용된 배경화면 원상복구
+            document.body.classList.remove('dead');
+
+            statusMessage.innerHTML = "실린더를 회전시켜 총알을 숨기세요.";
+            statusMessage.style.color = "#8a8a9e";
+            btnSpin.disabled = false;
+            btnTrigger.disabled = true;
+            btnReset.style.display = 'none';
+
+            for (let i = 0; i < totalChambers; i++) {
+                const el = document.getElementById(`chamber-${i}`);
+                el.className = 'chamber';
+            }
+
+            currentRotation = 0;
+            currentPosition = 0;
+            cylinder.style.transform = `translate(0px, 0px) rotate(0deg)`;
+            cylinder.style.filter = 'none';
+        }
+
+        // --- 실린더 무작위 회전 ---
+        function spinCylinder() {
+            if (isSpinning || isGameOver) return;
+            
+            sound.init();
+            isSpinning = true;
+            btnSpin.disabled = true;
+            btnTrigger.disabled = true;
+            statusMessage.innerHTML = "실린더가 고속 회전하는 중...";
+            statusMessage.style.color = "#f1c40f";
+
+            // 약실의 이전 흔적 청소
+            for (let i = 0; i < totalChambers; i++) {
+                const el = document.getElementById(`chamber-${i}`);
+                el.className = 'chamber';
+            }
+
+            // 1. 총알 무작위 배치
+            bulletPosition = Math.floor(Math.random() * totalChambers);
+            
+            // 2. 임의의 회전 오프셋 및 목표 각도 계산 (최소 4바퀴 ~ 최대 6바퀴 추가 회전)
+            const randomOffset = Math.floor(Math.random() * totalChambers);
+            currentPosition = randomOffset;
+
+            const spins = 4 + Math.floor(Math.random() * 3); // 4 ~ 6 바퀴
+            const targetRotation = currentRotation + (spins * 360) - (randomOffset * 60);
+
+            // 약 1.6초간 초정밀 감속 애니메이션으로 스핀
+            animateCylinder(targetRotation, 1600, () => {
+                isSpinning = false;
+                btnTrigger.disabled = false;
+                statusMessage.innerHTML = "격발 준비 완료! 방아쇠를 당기십시오.";
+                statusMessage.style.color = "#e74c3c";
+            });
+        }
+
+        // --- 방아쇠 당기기 ---
+        function pullTrigger() {
+            if (isGameOver || isSpinning) return;
+            sound.init();
+
+            const targetChamberId = currentPosition;
+            const targetChamberEl = document.getElementById(`chamber-${targetChamberId}`);
+
+            if (targetChamberId === bulletPosition) {
+                // 사망 격발 (BANG!)
+                sound.playExplosion();
+                isGameOver = true;
+                globalDeaths++;
+
+                // 브라우저 백그라운드 피빛 붉은색 그라디언트로 전환
+                document.body.classList.add('dead');
+
+                // 화면 피격 흔들림 및 레드 플래시 연출
+                flashOverlay.style.opacity = '1';
+                gameContainer.classList.add('shake-animation');
+                
+                setTimeout(() => {
+                    flashOverlay.style.opacity = '0';
+                }, 150);
+
+                setTimeout(() => {
+                    gameContainer.classList.remove('shake-animation');
+                }, 500);
+
+                statusMessage.innerHTML = "💥 BANG!!! 당신은 사망했습니다.";
+                statusMessage.style.color = "#ff3f34";
+                targetChamberEl.classList.add('fired-death');
+                targetChamberEl.classList.add('revealed-bullet');
+
+                survivalStreak = 0;
+                endRound();
+            } else {
+                // 생존 격발 (CLICK!)
+                sound.playEmptyClick();
+                survivalStreak++;
+                globalSurvivals++;
+                
+                targetChamberEl.classList.add('fired-safe');
+                statusMessage.innerHTML = "클릭! 다행히 안전합니다. 휴우~";
+                statusMessage.style.color = "#2ecc71";
+
+                // 다음 약실 각도 계산 (반시계방향 60도 추가 회전)
+                currentPosition = (currentPosition + 1) % totalChambers;
+                const targetRotation = currentRotation - 60;
+                
+                isSpinning = true;
+                btnTrigger.disabled = true;
+
+                // 다음 격실로 부드럽게 돌아가는 슬라이드 숏 애니메이션 실행 (450ms)
+                animateCylinder(targetRotation, 450, () => {
+                    const emptyChambersLeft = 6 - survivalStreak;
+                    if (emptyChambersLeft <= 1 && !isGameOver) {
+                        statusMessage.innerHTML = "축하합니다! 극한의 운으로 생존에 성공했습니다! 🎉";
+                        statusMessage.style.color = "#f1c40f";
+                        
+                        const realBulletEl = document.getElementById(`chamber-${bulletPosition}`);
+                        realBulletEl.classList.add('revealed-bullet');
+                        
+                        isGameOver = true;
+                        endRound();
+                    } else {
+                        btnTrigger.disabled = false;
+                        statusMessage.innerHTML = `생존 성공! 다음 격발을 준비하세요. (남은 약실: ${emptyChambersLeft}개)`;
+                    }
+                    isSpinning = false;
+                });
+            }
+
+            updateStatsUI();
+        }
+
+        // --- 라운드 종료 처리 ---
+        function endRound() {
+            btnSpin.disabled = true;
+            btnTrigger.disabled = true;
+            btnReset.style.display = 'block';
+        }
+
+        // --- 스코어보드 업데이트 ---
+        function updateStatsUI() {
+            survivalCountSpan.innerText = survivalStreak;
+            recordScoreSpan.innerText = `${globalSurvivals} / ${globalDeaths}`;
+        }
+
+        // --- 이벤트 바인딩 ---
+        btnSpin.addEventListener('click', spinCylinder);
+        btnTrigger.addEventListener('click', pullTrigger);
+        btnReset.addEventListener('click', resetGame);
+
+        // 초기화 실행
+        window.addEventListener('DOMContentLoaded', () => {
+            initChamberPositions();
+            resetGame();
+        });
+    </script>
+</body>
+</html>
