@@ -71,9 +71,26 @@
             background: #3498db;
             color: white;
         }
+        .nav-btn {
+            padding: 10px 15px;
+            background: rgba(128, 128, 128, 0.2);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            color: var(--text-color);
+            cursor: pointer;
+            text-decoration: none;
+            font-size: 14px;
+            font-family: 'Noto Sans KR', sans-serif;
+        }
+        .nav-btn:hover {
+            background: rgba(128, 128, 128, 0.3);
+        }
     </style>
 </head>
 <body>
+    <div style="position: absolute; top: 20px; right: 20px; z-index: 1000;">
+        <a href="index.html" class="nav-btn">메인으로 돌아가기</a>
+    </div>
     <div class="container">
         <h1>성별 구분기</h1>
         <input type="file" id="image-upload" accept="image/*" onchange="handleImage(event)">
