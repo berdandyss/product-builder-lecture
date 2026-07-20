@@ -7,6 +7,24 @@
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700&family=Noto+Sans+KR:wght@400;700&display=swap" rel="stylesheet">
     <style>
         /* 기본 스타일 및 테마 정의 */
+        :root {
+            --body-bg-color: #0d0d11;
+            --body-bg-gradient: radial-gradient(circle at 50% 30%, #201315 0%, #0d0d11 70%);
+            --text-color: #f5f5fa;
+            --container-bg: rgba(20, 20, 27, 0.75);
+            --border-color: rgba(255, 255, 255, 0.08);
+            --sub-text-color: #8a8a9e;
+        }
+
+        [data-theme='light'] {
+            --body-bg-color: #f0f0f5;
+            --body-bg-gradient: radial-gradient(circle at 50% 30%, #dcdcdc 0%, #f0f0f5 70%);
+            --text-color: #1a1a20;
+            --container-bg: rgba(255, 255, 255, 0.9);
+            --border-color: rgba(0, 0, 0, 0.1);
+            --sub-text-color: #555;
+        }
+
         * {
             box-sizing: border-box;
             margin: 0;
@@ -16,17 +34,30 @@
 
         body {
             font-family: 'Noto Sans KR', sans-serif;
-            background-color: #0d0d11;
-            background-image: 
-                radial-gradient(circle at 50% 30%, #201315 0%, #0d0d11 70%);
-            color: #f5f5fa;
+            background-color: var(--body-bg-color);
+            background-image: var(--body-bg-gradient);
+            color: var(--text-color);
             display: flex;
             justify-content: center;
             align-items: center;
             min-height: 100vh;
             overflow: hidden;
             position: relative;
-            transition: background 0.8s ease; /* 부드러운 배경색 전환 */
+            transition: background 0.8s ease, color 0.3s ease;
+        }
+
+        /* 테마 토글 버튼 스타일 */
+        .theme-toggle {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            padding: 10px 15px;
+            background: rgba(128, 128, 128, 0.2);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            color: var(--text-color);
+            cursor: pointer;
+            z-index: 1000;
         }
 
         /* 사망(게임오버) 상태의 긴장감 높은 배경 연출 */
@@ -54,10 +85,10 @@
         .game-container {
             width: 90%;
             max-width: 460px;
-            background: rgba(20, 20, 27, 0.75);
+            background: var(--container-bg);
             backdrop-filter: blur(15px);
             -webkit-backdrop-filter: blur(15px);
-            border: 1px solid rgba(255, 255, 255, 0.08);
+            border: 1px solid var(--border-color);
             border-radius: 24px;
             padding: 2.5rem 2rem;
             text-align: center;
@@ -98,7 +129,7 @@
 
         .subtitle {
             font-size: 0.9rem;
-            color: #8a8a9e;
+            color: var(--sub-text-color);
             margin-bottom: 2rem;
             font-weight: 300;
         }
@@ -313,6 +344,7 @@
     </style>
 </head>
 <body>
+    <button class="theme-toggle" id="themeToggle">색상 테마 전환</button>
 
     <!-- 화면 깜빡임 연출 레이어 -->
     <div class="flash-overlay" id="flashOverlay"></div>
@@ -707,6 +739,19 @@
         btnSpin.addEventListener('click', spinCylinder);
         btnTrigger.addEventListener('click', pullTrigger);
         btnReset.addEventListener('click', resetGame);
+
+        // --- 테마 토글 ---
+        const themeToggle = document.getElementById('themeToggle');
+        themeToggle.addEventListener('click', () => {
+            const currentTheme = document.documentElement.getAttribute('data-theme') || 'dark';
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+        });
+
+        // 초기화
+        const savedTheme = localStorage.getItem('theme') || 'dark';
+        document.documentElement.setAttribute('data-theme', savedTheme);
 
         // 초기화 실행
         window.addEventListener('DOMContentLoaded', () => {
