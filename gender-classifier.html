@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>성별 구분기 (Gender Classifier)</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --body-bg-color: #0d0d11;
+            --body-bg-gradient: radial-gradient(circle at 50% 30%, #201315 0%, #0d0d11 70%);
+            --text-color: #f5f5fa;
+            --container-bg: rgba(20, 20, 27, 0.75);
+            --border-color: rgba(255, 255, 255, 0.08);
+        }
+
+        [data-theme='light'] {
+            --body-bg-color: #f0f0f5;
+            --body-bg-gradient: radial-gradient(circle at 50% 30%, #dcdcdc 0%, #f0f0f5 70%);
+            --text-color: #1a1a20;
+            --container-bg: rgba(255, 255, 255, 0.9);
+            --border-color: rgba(0, 0, 0, 0.1);
+        }
+
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+            background-color: var(--body-bg-color);
+            background-image: var(--body-bg-gradient);
+            color: var(--text-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            transition: background 0.8s ease, color 0.3s ease;
+        }
+
+        .container {
+            width: 90%;
+            max-width: 500px;
+            background: var(--container-bg);
+            backdrop-filter: blur(15px);
+            border: 1px solid var(--border-color);
+            border-radius: 24px;
+            padding: 2rem;
+            text-align: center;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+        }
+
+        #webcam-container {
+            margin: 20px 0;
+        }
+
+        #webcam-container canvas {
+            border-radius: 12px;
+            width: 100%;
+        }
+
+        #label-container {
+            margin-top: 20px;
+            font-size: 1.2rem;
+            font-weight: bold;
+        }
+
+        button {
+            padding: 10px 20px;
+            font-size: 1rem;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            background: #3498db;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>성별 구분기</h1>
+        <button type="button" onclick="init()">카메라 시작</button>
+        <div id="webcam-container"></div>
+        <div id="label-container"></div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
+    <script type="text/javascript">
+        const URL = "https://teachablemachine.withgoogle.com/models/JINOQ76gS/";
+
+        let model, webcam, labelContainer, maxPredictions;
+
+        async function init() {
+            const modelURL = URL + "model.json";
+            const metadataURL = URL + "metadata.json";
+
+            model = await tmImage.load(modelURL, metadataURL);
+            maxPredictions = model.getTotalClasses();
+
+            const flip = true;
+            webcam = new tmImage.Webcam(200, 200, flip);
+            await webcam.setup();
+            await webcam.play();
+            window.requestAnimationFrame(loop);
+
+            document.getElementById("webcam-container").appendChild(webcam.canvas);
+            labelContainer = document.getElementById("label-container");
+            for (let i = 0; i < maxPredictions; i++) {
+                labelContainer.appendChild(document.createElement("div"));
+            }
+        }
+
+        async function loop() {
+            webcam.update();
+            await predict();
+            window.requestAnimationFrame(loop);
+        }
+
+        async function predict() {
+            const prediction = await model.predict(webcam.canvas);
+            for (let i = 0; i < maxPredictions; i++) {
+                const classPrediction =
+                    prediction[i].className + ": " + prediction[i].probability.toFixed(2);
+                labelContainer.childNodes[i].innerHTML = classPrediction;
+            }
+        }
+    </script>
+</body>
+</html>
