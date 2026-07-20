@@ -433,6 +433,22 @@
                 <button type="submit">문의 보내기</button>
             </form>
         </div>
+
+        <!-- Disqus 댓글 섹션 -->
+        <div id="disqus_thread" style="margin-top: 2rem;"></div>
+        <script>
+            var disqus_config = function () {
+                this.page.url = window.location.href;
+                this.page.identifier = 'deadly-roulette-game';
+            };
+            (function() {
+                var d = document, s = d.createElement('script');
+                s.src = 'https://productbuilder-xmgyl6bwwd.disqus.com/embed.js';
+                s.setAttribute('data-timestamp', +new Date());
+                (d.head || d.body).appendChild(s);
+            })();
+        </script>
+        <script id="dsq-count-scr" src="//productbuilder-xmgyl6bwwd.disqus.com/count.js" async></script>
     </div>
 
     <script>
