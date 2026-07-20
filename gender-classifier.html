@@ -76,8 +76,10 @@
 <body>
     <div class="container">
         <h1>성별 구분기</h1>
-        <button type="button" onclick="init()">카메라 시작</button>
-        <div id="webcam-container"></div>
+        <input type="file" id="image-upload" accept="image/*" onchange="handleImage(event)">
+        <div id="image-container" style="margin: 20px 0;">
+            <img id="preview" style="max-width: 100%; border-radius: 12px; display: none;">
+        </div>
         <div id="label-container"></div>
     </div>
 
@@ -85,43 +87,43 @@
     <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
     <script type="text/javascript">
         const URL = "https://teachablemachine.withgoogle.com/models/JINOQ76gS/";
-
-        let model, webcam, labelContainer, maxPredictions;
+        let model, labelContainer, maxPredictions;
 
         async function init() {
             const modelURL = URL + "model.json";
             const metadataURL = URL + "metadata.json";
-
             model = await tmImage.load(modelURL, metadataURL);
             maxPredictions = model.getTotalClasses();
-
-            const flip = true;
-            webcam = new tmImage.Webcam(200, 200, flip);
-            await webcam.setup();
-            await webcam.play();
-            window.requestAnimationFrame(loop);
-
-            document.getElementById("webcam-container").appendChild(webcam.canvas);
             labelContainer = document.getElementById("label-container");
             for (let i = 0; i < maxPredictions; i++) {
                 labelContainer.appendChild(document.createElement("div"));
             }
         }
 
-        async function loop() {
-            webcam.update();
-            await predict();
-            window.requestAnimationFrame(loop);
+        async function handleImage(event) {
+            const file = event.target.files[0];
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = document.getElementById("preview");
+                img.src = e.target.result;
+                img.style.display = 'block';
+                img.onload = async () => {
+                    await predict(img);
+                };
+            }
+            reader.readAsDataURL(file);
         }
 
-        async function predict() {
-            const prediction = await model.predict(webcam.canvas);
+        async function predict(image) {
+            const prediction = await model.predict(image);
             for (let i = 0; i < maxPredictions; i++) {
                 const classPrediction =
                     prediction[i].className + ": " + prediction[i].probability.toFixed(2);
                 labelContainer.childNodes[i].innerHTML = classPrediction;
             }
         }
+
+        init();
     </script>
 </body>
 </html>
